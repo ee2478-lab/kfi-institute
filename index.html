@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한국소방산업기술원 - 위험물탱크 정기검사 조회</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f3f4f6; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <header class="bg-blue-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2L3 7v6c0 5.52 3.84 10.74 9 12 5.16-1.26 9-6.48 9-12V7l-9-5zm0 2.18l7.5 4.17v4.65c0 4.41-2.81 8.56-7.5 9.83-4.69-1.27-7.5-5.42-7.5-9.83V8.35L12 4.18zM12 7a5 5 0 00-5 5c0 2.76 2.24 5 5 5s5-2.24 5-5a5 5 0 00-5-5zm0 1.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7z" />
+                    </svg>
+                    <span class="font-bold text-lg sm:text-xl tracking-wide">KFI 한국소방산업기술원</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6">
+        <div class="w-full max-w-5xl bg-white rounded-2xl shadow-xl overflow-hidden relative">
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 p-6 sm:p-8">
+                <!-- 타이틀 및 예시보기 버튼 영역 -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">위험물시설 정밀정기검사 일정 조회</h1>
+                    <button id="btnShowExample" class="mt-4 sm:mt-0 bg-white hover:bg-indigo-50 text-indigo-700 font-semibold py-2 px-4 rounded-lg text-sm transition-colors border border-indigo-200 shadow-sm flex items-center shrink-0">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        결과 예시 보기
+                    </button>
+                </div>
+                <p class="text-sm text-gray-600">안전한 위험물 시설 관리를 위해 정밀정기검사 교부일자 및 차기 개방 검사 예정일을 확인하시기 바랍니다.</p>
+                <p class="text-sm font-semibold text-blue-700 mt-3" id="dbStatusIndicator">데이터베이스 연동 중...</p>
+            </div>
+
+            <div id="userSection" class="p-6 sm:p-8 block">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- 검색 폼 -->
+                    <div class="lg:col-span-1 border-b lg:border-b-0 lg:border-r border-gray-200 lg:pr-8 pb-6 lg:pb-0">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">위험물시설 안전 정보 조회</h2>
+                        <p class="text-xs text-gray-500 mb-6">정보 보호를 위해 업체 정보와 비밀번호를 모두 입력해 주십시오.</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">업체명</label>
+                                <input type="text" id="searchCompanyName" placeholder="예: 대한화학(주)" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">사업자등록번호</label>
+                                <input type="text" id="searchBizNum" placeholder="숫자만 입력" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
+                                <input type="password" id="searchPassword" placeholder="초기 비밀번호: 담당자 이메일 주소" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                                <p class="text-[11px] text-blue-600 mt-1 font-medium">* 초기 비밀번호: 위험물시설 담당자 이메일 주소</p>
+                            </div>
+                            <button id="btnSearch" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg shadow-md transition-colors mt-2">
+                                내 탱크 조회하기
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 검색 결과 영역 -->
+                    <div class="lg:col-span-2">
+                        <div id="searchResultEmpty" class="h-full flex flex-col items-center justify-center text-gray-400 py-12">
+                            <svg class="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <p>좌측에서 정보를 입력하거나 상단의 <b>[결과 예시 보기]</b>를 클릭해 주세요.</p>
+                        </div>
+                        
+                        <div id="searchResultData" class="hidden h-full flex flex-col">
+                            <div class="flex justify-between items-end mb-4 border-b border-gray-200 pb-2">
+                                <div>
+                                    <h2 class="text-lg font-semibold text-gray-800"><span id="displayCompName" class="text-blue-700"></span> 탱크 목록</h2>
+                                    <span class="text-xs text-gray-500">※ 차기검사일 = 정밀정기검사 교부일자 + 11년</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button id="btnDownloadPDF" class="flex items-center space-x-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded shadow transition-colors" title="목록을 PDF로 다운로드">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                        <span>PDF 저장</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- PDF 변환 대상 -->
+                            <div id="pdfTargetArea" class="flex-grow flex flex-col bg-white p-2 rounded">
+                                <div id="pdfHeader" class="hidden text-center mb-6 mt-4">
+                                    <h1 class="text-2xl font-bold text-gray-800">위험물시설 정밀정기검사 차기일정</h1>
+                                    <p class="text-gray-600 mt-2">업체명: <span id="pdfCompName" class="font-semibold"></span> | 출력일: <span id="pdfPrintDate"></span></p>
+                                </div>
+                                <div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                        <thead class="bg-gray-100">
+                                            <tr>
+                                                <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-700">탱크번호</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-700">최초완공번호</th>
+                                                <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-700">용량(리터)</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-700">교부일자</th>
+                                                <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-700">차기검사일</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="resultTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 알림 모달 -->
+    <div id="customModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center fade-in">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-2">알림</h3>
+            <p id="modalMessage" class="text-gray-600 text-sm mb-6 whitespace-pre-line"></p>
+            <div class="flex justify-end">
+                <button id="modalCloseBtn" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 엑셀 파일 로드 실패 시 사용할 기본 가상 데이터 배열입니다.
+        let database = [
+            { companyName: '대한화학(주)', bizNum: '1234567890', tankNum: 'T-101', issueDate: '2015-06-10', capacity: '500,000', completionNum: '2010-001', email: 'admin@daehan.com' },
+            { companyName: '대한화학(주)', bizNum: '1234567890', tankNum: 'T-102', issueDate: '2016-08-22', capacity: '300,000', completionNum: '2010-002', email: 'admin@daehan.com' },
+            { companyName: '한국석유', bizNum: '0987654321', tankNum: 'TK-01', issueDate: '2018-11-05', capacity: '1,000,000', completionNum: '2015-100', email: 'safety@k-oil.co.kr' }
+        ];
+        let currentUser = null; 
+
+        const searchCompanyName = document.getElementById('searchCompanyName');
+        const searchBizNum = document.getElementById('searchBizNum');
+        const searchPassword = document.getElementById('searchPassword');
+        const btnSearch = document.getElementById('btnSearch');
+        const btnShowExample = document.getElementById('btnShowExample'); // 예시 버튼
+        const searchResultEmpty = document.getElementById('searchResultEmpty');
+        const searchResultData = document.getElementById('searchResultData');
+        const resultTableBody = document.getElementById('resultTableBody');
+        const displayCompName = document.getElementById('displayCompName');
+        const dbStatusIndicator = document.getElementById('dbStatusIndicator');
+        const customModal = document.getElementById('customModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+        const btnDownloadPDF = document.getElementById('btnDownloadPDF');
+        const pdfTargetArea = document.getElementById('pdfTargetArea');
+        const pdfHeader = document.getElementById('pdfHeader');
+
+        function showModal(title, message) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            customModal.classList.remove('hidden');
+        }
+        modalCloseBtn.addEventListener('click', () => customModal.classList.add('hidden'));
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            // 기본 상태는 가상 데이터를 사용하는 것으로 설정합니다.
+            dbStatusIndicator.textContent = `🟢 기본 가상 데이터 사용 중 (총 ${database.length}건)`;
+            dbStatusIndicator.classList.replace('text-blue-700', 'text-green-600');
+            
+            try {
+                // 엑셀 파일 로드 시도 (경로 문제 등을 방지하기 위해 파일명을 URL 인코딩 처리)
+                const fileName = encodeURIComponent('위험물탱크 정기검사 교부(2015).xlsx');
+                // 실제 환경에서는 유효한 절대 경로나 올바른 상대 경로를 사용해야 합니다.
+                // 여기서는 시연을 위해 fetch를 시도하고 실패하면 가상 데이터를 유지합니다.
+                const response = await fetch('./' + fileName);
+                
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const data = new Uint8Array(arrayBuffer);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    
+                    processExcelData(rawData);
+                } else {
+                    console.warn('엑셀 파일을 찾을 수 없어 기본 가상 데이터를 사용합니다.');
+                }
+            } catch (error) {
+                console.warn('엑셀 데이터 파일 로드 실패 (CORS 또는 경로 문제). 기본 가상 데이터를 사용합니다.', error);
+                // 에러 발생 시 UI 표시 없이 기존 database(가상 데이터)를 계속 사용
+            }
+        });
+
+        function processExcelData(rawData) {
+            if (rawData.length < 3) return;
+            
+            const mergedHeaders = [];
+            const maxCols = Math.max((rawData[0] || []).length, (rawData[1] || []).length);
+            for (let i = 0; i < maxCols; i++) {
+                const val1 = ((rawData[0] || [])[i] || '').toString().trim();
+                const val2 = ((rawData[1] || [])[i] || '').toString().trim();
+                mergedHeaders.push(`${val1} ${val2}`.trim());
+            }
+
+            const findColIndex = (aliases, excludes = []) => {
+                return mergedHeaders.findIndex(h => {
+                    const cleanH = h.replace(/\s+/g, '');
+                    return aliases.some(alias => cleanH.includes(alias)) && !excludes.some(ex => cleanH.includes(ex));
+                });
+            };
+
+            const colIdxCompany = findColIndex(['업체', '상호', '사업장', '회사명']);
+            const colIdxBizNum = findColIndex(['사업자', '등록번호']); 
+            const colIdxTankNum = findColIndex(['탱크', '제조소', '시설번호']);
+            const colIdxIssueDate = findColIndex(['교부일', '검사일', '합격일', '발급일', '일자'], ['번호', 'no']);
+            const colIdxEmail = findColIndex(['이메일', '메일', 'email', 'e-mail']);
+            const colIdxCapacity = findColIndex(['용량', '리터', '체적']);
+            const colIdxCompletionNum = findColIndex(['완공번호', '최초완공', '완공일련번호'], ['일', '일자', '날짜', '기일']);
+
+            const cleanData = [];
+            for (let i = 2; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (!row || row.length === 0 || !row.some(cell => cell !== "")) continue;
+
+                let dateStr = row[colIdxIssueDate];
+                if (typeof dateStr === 'number') {
+                    dateStr = new Date(Math.round((dateStr - 25569)*86400*1000)).toISOString().split('T')[0];
+                } else if (dateStr instanceof Date) {
+                    dateStr = dateStr.toISOString().split('T')[0];
+                } else if (dateStr) {
+                    dateStr = dateStr.toString().trim();
+                }
+
+                const companyName = (row[colIdxCompany] || '').toString().trim();
+                const bizNum = (row[colIdxBizNum] || '').toString().trim().replace(/[^0-9]/g, ''); 
+                const tankNum = (row[colIdxTankNum] || '').toString().trim();
+                const email = (row[colIdxEmail] || '').toString().trim();
+                
+                let capacity = '';
+                if (colIdxCapacity !== -1) {
+                    capacity = (row[colIdxCapacity] || '').toString().trim();
+                    if (!isNaN(capacity.replace(/,/g, '')) && capacity !== '') {
+                        capacity = Number(capacity.replace(/,/g, '')).toLocaleString();
+                    }
+                }
+                const completionNum = colIdxCompletionNum !== -1 ? (row[colIdxCompletionNum] || '').toString().trim() : '';
+
+                if (companyName !== '' && dateStr !== '' && bizNum !== '' && email !== '') {
+                    cleanData.push({ companyName, bizNum, tankNum, issueDate: dateStr, capacity, completionNum, email });
+                }
+            }
+            database = cleanData;
+            dbStatusIndicator.textContent = `🟢 최신 데이터 연동 완료 (총 ${database.length}건)`;
+            dbStatusIndicator.classList.replace('text-blue-700', 'text-green-600');
+        }
+
+        function calculateNextInspectionDate(issueDateStr) {
+            try {
+                const cleanStr = issueDateStr.replace(/[\.\/]/g, '-');
+                const dateObj = new Date(cleanStr);
+                if (isNaN(dateObj.getTime())) return "형식 오류";
+                dateObj.setFullYear(dateObj.getFullYear() + 11);
+                return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+            } catch(e) { return "계산 불가"; }
+        }
+
+        function renderTable(tanks) {
+            resultTableBody.innerHTML = '';
+            const today = new Date();
+            tanks.forEach(tank => {
+                const nextDateStr = calculateNextInspectionDate(tank.issueDate);
+                let nextDateBadge = '';
+                if (nextDateStr !== "형식 오류" && nextDateStr !== "계산 불가") {
+                    const diffDays = Math.ceil((new Date(nextDateStr) - today) / (1000 * 60 * 60 * 24)); 
+                    if (diffDays <= 0) nextDateBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">기한 만료</span>`;
+                    else if (diffDays <= 365) nextDateBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">1년 내 도래</span>`;
+                    else nextDateBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">여유</span>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-900 font-medium">${tank.tankNum}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600">${tank.completionNum || '-'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 text-right pr-8">${tank.capacity || '-'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600">${tank.issueDate.replace(/-/g, '.')}</td>
+                    <td class="px-4 py-3 whitespace-nowrap font-bold text-blue-700">${nextDateStr.replace(/-/g, '.')} ${nextDateBadge}</td>
+                `;
+                resultTableBody.appendChild(tr);
+            });
+            searchResultEmpty.classList.add('hidden');
+            searchResultData.classList.remove('hidden');
+        }
+
+        btnSearch.addEventListener('click', () => {
+            const cName = searchCompanyName.value.trim();
+            const bNum = searchBizNum.value.trim().replace(/[^0-9]/g, '');
+            const inputPwd = searchPassword.value.trim();
+
+            if (!cName || !bNum || !inputPwd) {
+                showModal('입력 오류', '업체명, 사업자등록번호, 비밀번호를 모두 입력해 주세요.');
+                return;
+            }
+            if (database.length === 0) {
+                showModal('데이터 없음', '등록된 검사 데이터가 없습니다. 서버 상태를 확인해 주세요.');
+                return;
+            }
+
+            const userTanks = database.filter(item => item.companyName === cName && item.bizNum === bNum);
+
+            if (userTanks.length === 0) {
+                showModal('조회 실패', '입력하신 업체명과 사업자번호와 일치하는 검사 내역이 없습니다.');
+                searchResultEmpty.classList.remove('hidden');
+                searchResultData.classList.add('hidden');
+                return;
+            }
+
+            const expectedPwd = userTanks[0].email;
+            if (inputPwd !== expectedPwd) {
+                showModal('인증 실패', '비밀번호가 일치하지 않습니다.\n초기 비밀번호는 엑셀에 등록된 이메일 주소입니다.');
+                return;
+            }
+
+            currentUser = { cName, bNum };
+            displayCompName.textContent = cName;
+            userTanks.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+            
+            renderTable(userTanks);
+            searchPassword.value = ''; 
+        });
+
+        // 예시 보기 버튼 이벤트 추가
+        btnShowExample.addEventListener('click', () => {
+            // 예시용 가상 데이터 생성
+            const exampleTanks = [
+                { tankNum: 'TK-005', completionNum: '2010-01', capacity: '1,500,000', issueDate: '2010-05-15' },
+                { tankNum: 'TK-006', completionNum: '2012-03', capacity: '2,000,000', issueDate: '2012-08-20' },
+                { tankNum: 'TK-001', completionNum: '2015-05', capacity: '4,000,000', issueDate: '2018-11-10' },
+                { tankNum: 'TK-007', completionNum: '2005-02', capacity: '1,200,000', issueDate: '2014-02-28' }
+            ];
+            
+            currentUser = { cName: '한국케미칼(주) [예시]', bNum: '000-00-00000' };
+            displayCompName.textContent = currentUser.cName;
+            
+            // 데이터 정렬 및 테이블 렌더링
+            exampleTanks.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+            renderTable(exampleTanks);
+        });
+
+        [searchBizNum, searchPassword].forEach(el => {
+            el.addEventListener('keypress', (e) => { if (e.key === 'Enter') btnSearch.click(); });
+        });
+
+        btnDownloadPDF.addEventListener('click', () => {
+            if(!currentUser) return;
+            const today = new Date();
+            const dateString = `${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}`;
+            
+            document.getElementById('pdfCompName').textContent = currentUser.cName;
+            document.getElementById('pdfPrintDate').textContent = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+            pdfHeader.classList.remove('hidden');
+            
+            const opt = {
+                margin:       [15, 10, 15, 10], 
+                filename:     `${currentUser.cName}_차기검사일정_${dateString}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' } 
+            };
+
+            const originalText = btnDownloadPDF.innerHTML;
+            btnDownloadPDF.innerHTML = `<span class="animate-pulse">PDF 변환 중...</span>`;
+            btnDownloadPDF.disabled = true;
+
+            html2pdf().set(opt).from(pdfTargetArea).save().then(() => {
+                pdfHeader.classList.add('hidden');
+                btnDownloadPDF.innerHTML = originalText;
+                btnDownloadPDF.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
